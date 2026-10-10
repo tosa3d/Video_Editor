@@ -1,0 +1,70 @@
+@import '@fontsource-variable/vazirmatn';
+
+:root {
+  font-family: 'Vazirmatn Variable', Tahoma, sans-serif;
+  color: #e9efec;
+  background: #0d1011;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --ink: #e9efec;
+  --muted: #89928f;
+  --dim: #59615f;
+  --canvas: #0d1011;
+  --panel: #15191a;
+  --panel-raised: #1a1f20;
+  --line: #293031;
+  --line-strong: #394243;
+  --teal: #51d6c6;
+  --teal-dark: #173d39;
+  --orange: #ff835c;
+  --orange-dark: #4a2a20;
+  --danger: #ff6f70;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--canvas);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 84% -10%, rgba(81, 214, 198, 0.09), transparent 28rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%) 0 0 / 14px 14px,
+    var(--canvas);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+::selection {
+  color: #071311;
+  background: var(--teal);
+}
