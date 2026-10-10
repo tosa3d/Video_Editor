@@ -929,29 +929,14 @@ kbd {
   }
 }
 
+/* sidebar: what the per-clip "برعکس" toggles do, plus all / none */
 .reverse-control {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   padding: 13px 14px 14px;
   border-top: 1px solid var(--line);
   background: #111516;
-  cursor: pointer;
-}
-
-.reverse-control input {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  margin: 2px 0 0;
-  accent-color: var(--teal);
-  cursor: pointer;
-}
-
-.reverse-control span {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .reverse-control strong {
@@ -964,4 +949,69 @@ kbd {
   color: var(--muted);
   font-size: 0.7rem;
   line-height: 1.6;
+}
+
+.reverse-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.reverse-actions button {
+  padding: 5px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #0d1011;
+  font-size: 0.72rem;
+}
+
+.reverse-actions button:hover:not(:disabled) {
+  border-color: var(--teal);
+}
+
+.reverse-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.reverse-actions span {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+/* per-clip toggle in the clip list */
+.reverse-toggle {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  margin-inline-end: 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.reverse-toggle input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--teal);
+  cursor: pointer;
+}
+
+.reverse-toggle:hover {
+  border-color: var(--teal);
+}
+
+.reverse-toggle.on {
+  border-color: rgba(81, 214, 198, 0.5);
+  color: var(--teal);
+  background: var(--teal-dark);
 }

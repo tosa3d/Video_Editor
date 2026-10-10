@@ -11,8 +11,8 @@ declare global {
     cutTimes: number[]
     duration: number
     fps: number
-    /** Also write a reversed copy of every clip (`…_part_01_reverse.mp4`). */
-    reverse?: boolean
+    /** Start times of the clips that also get a reversed copy (`…_part_01_reverse.mp4`). */
+    reverseStarts?: number[]
   }
 
   interface ExportProgress {

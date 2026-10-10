@@ -29,7 +29,7 @@ interface ExportRequest {
   cutTimes: number[]
   duration: number
   fps: number
-  reverse?: boolean
+  reverseStarts?: number[]
 }
 
 interface ExportProgress {
@@ -388,9 +388,12 @@ function registerIpcHandlers(): void {
     }
 
     const baseName = safeBaseName(selectedVideoPath)
-    const reverse = request.reverse === true
-    // Each clip is one step, plus one more for its reversed copy.
-    const totalSteps = segments.length * (reverse ? 2 : 1)
+    // Clips chosen for a reversed copy, matched by start time (0, or the cut that opens the clip).
+    const reverseStarts = Array.isArray(request.reverseStarts) ? request.reverseStarts.filter(Number.isFinite) : []
+    const isReversed = (segment: Segment) => reverseStarts.some((start) => Math.abs(start - segment.start) < 1e-6)
+    const reversedCount = segments.filter(isReversed).length
+    // Each clip is one step, plus one more for each reversed copy.
+    const totalSteps = segments.length + reversedCount
     let step = 0
     const reportFor = (fileName: string, stepDuration: number) => {
       const stepIndex = step++
@@ -416,7 +419,7 @@ function registerIpcHandlers(): void {
 
       await encodeSegment(selectedVideoPath, outputPath, segment, fps, reportFor(fileName, segmentDuration))
 
-      if (reverse) {
+      if (isReversed(segment)) {
         const reversedName = `${baseName}_part_${partNumber}_reverse.mp4`
         await encodeReversed(outputPath, path.join(outputDirectory, reversedName), reportFor(reversedName, segmentDuration))
       }
@@ -425,7 +428,7 @@ function registerIpcHandlers(): void {
     return {
       canceled: false,
       count: segments.length,
-      reversedCount: reverse ? segments.length : 0,
+      reversedCount,
       directory: outputDirectory,
     }
   })

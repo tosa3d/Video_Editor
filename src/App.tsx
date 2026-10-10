@@ -111,8 +111,6 @@ function formatShortTime(seconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${secs.toFixed(1).padStart(4, '0')}`
 }
 
-const REVERSE_PREF = 'boresh.exportReversed'
-
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -125,16 +123,9 @@ function App() {
   const [isExporting, setIsExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
-  // On by default; the choice is remembered between sessions.
-  const [exportReversed, setExportReversed] = useState(() => {
-    try { return localStorage.getItem(REVERSE_PREF) !== 'off' } catch { return true }
-  })
-
-  const toggleExportReversed = (event: ChangeEvent<HTMLInputElement>) => {
-    const on = event.currentTarget.checked
-    setExportReversed(on)
-    try { localStorage.setItem(REVERSE_PREF, on ? 'on' : 'off') } catch { /* storage unavailable */ }
-  }
+  // Clips that also get a reversed copy, identified by their start time
+  // (0 for the first clip, otherwise the cut that opens it).
+  const [reversedStarts, setReversedStarts] = useState<number[]>([])
 
   const segments = useMemo<Segment[]>(() => {
     if (duration <= 0) return []
@@ -146,6 +137,14 @@ function App() {
   }, [cutTimes, duration])
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+  const reversedSegments = segments.filter((segment) => reversedStarts.includes(segment.start))
+
+  const toggleReverse = (start: number) => {
+    setReversedStarts((previous) =>
+      previous.includes(start) ? previous.filter((value) => value !== start) : [...previous, start],
+    )
+  }
+  const setAllReversed = (on: boolean) => setReversedStarts(on ? segments.map((segment) => segment.start) : [])
 
   const seekTo = useCallback(
     (time: number) => {
@@ -218,12 +217,15 @@ function App() {
         return previous
       }
       setNotice({ type: 'success', text: `برش در ${formatTimecode(time, fps)} ثبت شد.` })
+      const parentStart = Math.max(0, ...previous.filter((cut) => cut < time))
+      setReversedStarts((starts) => (starts.includes(parentStart) ? [...starts, time] : starts))
       return [...previous, time].sort((a, b) => a - b)
     })
   }, [currentTime, duration, fps, video])
 
   const removeCut = (time: number) => {
     setCutTimes((previous) => previous.filter((cut) => cut !== time))
+    setReversedStarts((previous) => previous.filter((start) => start !== time))
     setNotice({ type: 'info', text: 'نقطه برش حذف شد.' })
   }
 
@@ -234,6 +236,7 @@ function App() {
     setCurrentTime(0)
     if (selection.fps && Number.isFinite(selection.fps)) setFps(selection.fps)
     setCutTimes([])
+    setReversedStarts([])
     setIsPlaying(false)
     setExportProgress(null)
     setNotice({ type: 'success', text: 'ویدیو آماده تدوین است.' })
@@ -278,11 +281,16 @@ function App() {
     }
 
     setIsExporting(true)
-    setExportProgress({ current: 1, total: segments.length * (exportReversed ? 2 : 1), percent: 0, fileName: '' })
+    setExportProgress({ current: 1, total: segments.length + reversedSegments.length, percent: 0, fileName: '' })
     setNotice({ type: 'info', text: 'در حال آماده‌سازی خروجی‌ها…' })
 
     try {
-      const result = await api.exportSegments({ cutTimes, duration, fps, reverse: exportReversed })
+      const result = await api.exportSegments({
+        cutTimes,
+        duration,
+        fps,
+        reverseStarts: reversedSegments.map((segment) => segment.start),
+      })
       if (result.canceled) {
         setExportProgress(null)
         setNotice({ type: 'info', text: 'خروجی گرفتن لغو شد.' })
@@ -323,11 +331,12 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
-      // The timeline slider keeps focus after a click; shortcuts must still work there.
-      const isSlider = target instanceof HTMLInputElement && target.type === 'range'
+      // Shortcuts stand aside only where keys type text (the FPS box). The timeline slider and
+      // the clips' "برعکس" checkboxes keep focus after a click, and shortcuts must still work there.
+      const isToggle = target instanceof HTMLInputElement && ['range', 'checkbox'].includes(target.type)
       if (
         target?.isContentEditable ||
-        (!isSlider && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? ''))
+        (!isToggle && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? ''))
       ) {
         return
       }
@@ -388,7 +397,9 @@ function App() {
             type="button"
           >
             <ExportIcon />
-            {isExporting ? 'در حال خروجی…' : `خروجی ${segments.length || ''} کلیپ`}
+            {isExporting
+              ? 'در حال خروجی…'
+              : `خروجی ${segments.length || ''} کلیپ${reversedSegments.length ? ` + ${reversedSegments.length.toLocaleString('fa-IR')} برعکس` : ''}`}
           </button>
         </div>
       </header>
@@ -513,6 +524,18 @@ function App() {
                     </span>
                     <span className="segment-duration" dir="ltr">{formatShortTime(segment.end - segment.start)}</span>
                   </button>
+                  <label
+                    className={`reverse-toggle ${reversedStarts.includes(segment.start) ? 'on' : ''}`}
+                    title="نسخه‌ی برعکس این کلیپ هم ساخته شود"
+                  >
+                    <input
+                      checked={reversedStarts.includes(segment.start)}
+                      disabled={isExporting}
+                      onChange={() => toggleReverse(segment.start)}
+                      type="checkbox"
+                    />
+                    <span>برعکس</span>
+                  </label>
                   {endingCut !== undefined && (
                     <button
                       aria-label={`حذف برش ${index + 1}`}
@@ -551,18 +574,20 @@ function App() {
             <small>برای حرکت دقیق فریم‌به‌فریم، با نرخ ویدیو یکسان باشد.</small>
           </div>
 
-          <label className="reverse-control">
-            <input
-              checked={exportReversed}
-              disabled={isExporting}
-              onChange={toggleExportReversed}
-              type="checkbox"
-            />
-            <span>
-              <strong>نسخه‌ی برعکس هر کلیپ را هم بساز</strong>
-              <small>کنار هر کلیپ، همان کلیپ از آخر به اول ذخیره می‌شود؛ مثلاً برای حرکت برگشت دوربین. نام: <bdi dir="ltr">…_part_01_reverse.mp4</bdi></small>
-            </span>
-          </label>
+          <div className="reverse-control">
+            <strong>نسخه‌ی برعکس</strong>
+            <small>
+              روی هر کلیپ «برعکس» را بزنید تا کنارش همان کلیپ از آخر به اول هم ساخته شود؛ مثلاً برای حرکت برگشت دوربین.
+              نام: <bdi dir="ltr">…_part_01_reverse.mp4</bdi>
+            </small>
+            <div className="reverse-actions">
+              <button disabled={!segments.length || isExporting} onClick={() => setAllReversed(true)} type="button">همه</button>
+              <button disabled={!reversedSegments.length || isExporting} onClick={() => setAllReversed(false)} type="button">هیچ‌کدام</button>
+              <span>
+                {reversedSegments.length.toLocaleString('fa-IR')} از {segments.length.toLocaleString('fa-IR')} کلیپ
+              </span>
+            </div>
+          </div>
         </aside>
 
         <section className="timeline-panel panel">

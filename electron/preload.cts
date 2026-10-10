@@ -8,7 +8,7 @@ interface ExportRequest {
   cutTimes: number[]
   duration: number
   fps: number
-  reverse?: boolean
+  reverseStarts?: number[]
 }
 
 interface ExportProgress {
